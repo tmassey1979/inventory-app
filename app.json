@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Inventory Manager",
+    "slug": "inventory-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "inventory-app",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.inventory.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs camera access to photograph inventory items.",
+        "NSPhotoLibraryUsageDescription": "This app needs photo library access to select inventory item photos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "com.inventory.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Inventory Manager to access your photos to attach to inventory items.",
+          "cameraPermission": "Allow Inventory Manager to use the camera to photograph inventory items."
+        }
+      ],
+      "expo-sqlite"
+    ]
+  }
+}
