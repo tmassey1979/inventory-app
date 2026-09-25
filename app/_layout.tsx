@@ -9,6 +9,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getDatabase } from '../src/db/database';
 import { seedDevelopmentData } from '../src/db/inventoryRepository';
 
@@ -49,51 +50,63 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <Tabs
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: scheme === 'dark' ? '#0f0f1a' : '#ffffff',
-          },
-          headerTintColor: scheme === 'dark' ? '#F9FAFB' : '#111827',
-          tabBarStyle: {
-            backgroundColor: scheme === 'dark' ? '#0f0f1a' : '#ffffff',
-            borderTopColor: scheme === 'dark' ? '#374151' : '#E5E7EB',
-          },
-          tabBarActiveTintColor: '#3B82F6',
-          tabBarInactiveTintColor: '#9CA3AF',
-        }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Dashboard',
-            tabBarLabel: 'Dashboard',
-            tabBarIcon: () => <Text style={{ fontSize: 20 }}>📊</Text>,
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        <Tabs
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: scheme === 'dark' ? '#0f0f1a' : '#ffffff',
+            },
+            headerTintColor: scheme === 'dark' ? '#F9FAFB' : '#111827',
+            tabBarStyle: {
+              backgroundColor: scheme === 'dark' ? '#0f0f1a' : '#ffffff',
+              borderTopColor: scheme === 'dark' ? '#374151' : '#E5E7EB',
+            },
+            tabBarActiveTintColor: '#3B82F6',
+            tabBarInactiveTintColor: '#9CA3AF',
           }}
-        />
-        <Tabs.Screen
-          name="inventory/index"
-          options={{
-            title: 'Inventory',
-            tabBarLabel: 'Inventory',
-            tabBarIcon: () => <Text style={{ fontSize: 20 }}>📦</Text>,
-          }}
-        />
-        <Tabs.Screen
-          name="inventory/add"
-          options={{
-            title: 'Add Item',
-            tabBarLabel: 'Add',
-            tabBarIcon: () => <Text style={{ fontSize: 20 }}>➕</Text>,
-          }}
-        />
-        <Tabs.Screen name="inventory/[id]" options={{ href: null, title: 'Item Details' }} />
-        <Tabs.Screen name="inventory/edit" options={{ href: null, title: 'Edit Item' }} />
-        <Tabs.Screen name="inventory/status" options={{ href: null, title: 'Change Status' }} />
-      </Tabs>
-    </SafeAreaProvider>
+        >
+          <Tabs.Screen
+            name="index"
+            options={{
+              title: 'Dashboard',
+              tabBarLabel: 'Dashboard',
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>📊</Text>,
+            }}
+          />
+          <Tabs.Screen
+            name="inventory/index"
+            options={{
+              title: 'Inventory',
+              tabBarLabel: 'Inventory',
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>📦</Text>,
+            }}
+          />
+          <Tabs.Screen
+            name="inventory/add"
+            options={{
+              title: 'Add Item',
+              tabBarLabel: 'Add',
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>➕</Text>,
+            }}
+          />
+          <Tabs.Screen
+            name="tools/index"
+            options={{
+              title: 'Tools',
+              tabBarLabel: 'Tools',
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>🛠️</Text>,
+            }}
+          />
+          <Tabs.Screen name="inventory/[id]" options={{ href: null, title: 'Item Details' }} />
+          <Tabs.Screen name="inventory/edit" options={{ href: null, title: 'Edit Item' }} />
+          <Tabs.Screen name="inventory/status" options={{ href: null, title: 'Change Status' }} />
+          <Tabs.Screen name="tools/sync" options={{ href: null, title: 'LAN Sync' }} />
+          <Tabs.Screen name="tools/scan" options={{ href: null, title: 'Scan Barcode' }} />
+        </Tabs>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
