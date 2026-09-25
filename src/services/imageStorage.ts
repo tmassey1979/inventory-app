@@ -2,11 +2,12 @@ import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 const PHOTOS_DIR = `${FileSystem.documentDirectory}inventory_photos/`;
+const LABELS_DIR = `${FileSystem.documentDirectory}shipping_labels/`;
 
-async function ensurePhotosDir(): Promise<void> {
-  const info = await FileSystem.getInfoAsync(PHOTOS_DIR);
+async function ensureDir(dir: string): Promise<void> {
+  const info = await FileSystem.getInfoAsync(dir);
   if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(PHOTOS_DIR, { intermediates: true });
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
   }
 }
 
@@ -26,7 +27,7 @@ export async function saveInventoryPhoto(
   sourceUri: string,
   inventoryNumber: number
 ): Promise<string> {
-  await ensurePhotosDir();
+  await ensureDir(PHOTOS_DIR);
   const optimizedUri = await optimizeImage(sourceUri);
   const filename = `inv_${inventoryNumber.toString().padStart(4, '0')}_${Date.now()}.jpg`;
   const destUri = `${PHOTOS_DIR}${filename}`;
@@ -77,4 +78,56 @@ export async function photoExists(photoUri: string | null): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function saveShippingLabel(
+  sourceUri: string,
+  inventoryNumber: number
+): Promise<string> {
+  await ensureDir(LABELS_DIR);
+  const filename = `label_${inventoryNumber.toString().padStart(4, '0')}_${Date.now()}.jpg`;
+  const destUri = `${LABELS_DIR}${filename}`;
+  try {
+    const optimized = await optimizeImage(sourceUri);
+    await FileSystem.copyAsync({ from: optimized, to: destUri });
+    if (optimized !== sourceUri) {
+      try {
+        await FileSystem.deleteAsync(optimized, { idempotent: true });
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    await FileSystem.copyAsync({ from: sourceUri, to: destUri });
+  }
+  return destUri;
+}
+
+export async function deleteShippingLabel(uri: string | null): Promise<void> {
+  if (!uri) return;
+  await deleteInventoryPhoto(uri);
+}
+
+export async function readAsBase64(uri: string): Promise<string | null> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists) return null;
+    return await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function writeBase64File(
+  base64: string,
+  destUri: string
+): Promise<string> {
+  const dir = destUri.substring(0, destUri.lastIndexOf('/') + 1);
+  await ensureDir(dir);
+  await FileSystem.writeAsStringAsync(destUri, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  return destUri;
 }
