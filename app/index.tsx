@@ -94,6 +94,18 @@ export default function DashboardScreen() {
           subtitle="Sale − Purchase"
           accentColor={(stats?.actualProfit ?? 0) >= 0 ? '#10B981' : '#EF4444'}
         />
+        <DashboardCard
+          title="Net Profit"
+          value={formatCurrency(stats?.netProfit)}
+          subtitle="After fees & shipping"
+          accentColor={(stats?.netProfit ?? 0) >= 0 ? '#10B981' : '#EF4444'}
+        />
+        <DashboardCard
+          title="To Ship"
+          value={String(stats?.toShipCount ?? 0)}
+          subtitle="Status: Packed"
+          accentColor="#F59E0B"
+        />
       </View>
     </ScrollView>
   );
