@@ -1,82 +1,60 @@
-# Personal Inventory Manager
+# Inventory Manager
 
-Offline-first personal inventory management mobile app built with **Expo**, **React Native**, and **TypeScript**. Designed for buying, listing, and reselling physical items.
+Offline personal inventory app for buy/resell workflows.
+
+Built with **Expo**, **React Native**, **TypeScript**, **Expo Router**, and **expo-sqlite**.
 
 ## Features
 
-- **Fully offline** — all data stored locally with SQLite
-- **Automatic 4-digit inventory numbers** (0001–9999) with gap reuse
-- **Status workflow**: Added → Listed → Sold → Packed → Shipped (plus Delisted / Donated)
-- **Status history timeline** with optional notes
-- **Photo support** — camera or gallery, resized & stored persistently
-- **Dashboard** with counts and financial summaries
-- **Search & filters** (status, category, bin) via SQLite
-- **Light / dark mode** support
+- Automatic 4-digit inventory numbers
+- Status workflow: Added → Listed → Sold → Packed → Shipped (+ Delisted / Donated)
+- Local photos and shipping labels on device filesystem
+- Search, filters, dashboard stats
+- Multi-photo gallery per item
+- Barcode / QR scan
+- CSV / JSON export & import (merge by inventory number)
+- Swipe left for quick status changes
+- Marketplace platform + listing URL
+- Fees & shipping cost → net profit
+- Print packing slip, shipping label, and checklist
+- Same-network hand-off via export/import (no cloud backend)
+- Haptics and system light/dark mode
 
-## Technology Stack
-
-- Expo SDK 52
-- React Native 0.76
-- TypeScript
-- Expo Router (file-based navigation)
-- expo-sqlite
-- expo-image-picker / expo-image-manipulator / expo-file-system
-
-## Requirements
-
-- Node.js 18+
-- npm
-- Expo Go app (optional, for device testing)
-
-## Installation
+## Run
 
 ```bash
 npm install
-```
-
-## Running
-
-```bash
 npx expo start
 ```
 
-- Press `a` for Android emulator
-- Press `i` for iOS simulator
-- Scan QR code with **Expo Go** on a physical device
+Use Expo Go on your phone, or an iOS/Android simulator.
 
-## CI
+## v1.1 features
 
-GitHub Actions runs on every push/PR to `main`:
+- Barcode scan (Tools → Scan)
+- CSV / JSON export & import (merge by inventory number)
+- Swipe left on list for quick status (Listed / Sold / Packed / Shipped …)
+- Multi-photo gallery per item
+- Shipping labels: attach image, print via system printer
+- Packing slip + shipping checklist print
+- Marketplace platform + listing URL
+- Fees & shipping cost → net profit on dashboard and detail
+- Haptics on key actions
+- Dark / light follows system
+- LAN sync screen (same Wi‑Fi): export/import is reliable in Expo Go; live HTTP pull needs a dev client with a native HTTP bridge
 
-1. Install dependencies (`npm install`)
-2. TypeScript check (`tsc --noEmit`)
-3. Unit tests (`npm test`)
+## LAN sync without a cloud backend
 
-Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+1. **Recommended (works in Expo Go):** on device A open Tools → Export JSON → share via AirDrop / Nearby Share / Files. On device B open Tools → Import JSON. Merge is by inventory number.
+2. **Same Wi‑Fi host UI:** Tools → LAN sync shows this device IP. Live TCP host is not available inside Expo Go; use export/import, or build a custom dev client that serves `GET /sync`.
 
-## Testing
+## Tests
 
 ```bash
 npm test
-```
-
-Covers inventory number formatting, currency helpers, and status validation.
-
-## Project Structure
-
-```
-app/                    # Expo Router screens
-src/
-  components/           # Reusable UI
-  db/                   # SQLite + repository
-  models/               # TypeScript types
-  hooks/                # Data hooks
-  services/             # Image storage
-  utils/                # Helpers
-__tests__/              # Unit tests
-.github/workflows/      # CI
+npm run typecheck
 ```
 
 ## License
 
-MIT
+Private / personal use.
