@@ -43,6 +43,32 @@ export const MIGRATIONS: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_status_history_item_id ON inventory_status_history(inventory_item_id);`,
     ],
   },
+  {
+    version: 2,
+    name: 'commerce_shipping_photos',
+    up: [
+      `ALTER TABLE inventory_items ADD COLUMN barcode TEXT;`,
+      `ALTER TABLE inventory_items ADD COLUMN marketplace_platform TEXT;`,
+      `ALTER TABLE inventory_items ADD COLUMN marketplace_url TEXT;`,
+      `ALTER TABLE inventory_items ADD COLUMN fees REAL;`,
+      `ALTER TABLE inventory_items ADD COLUMN shipping_cost REAL;`,
+      `ALTER TABLE inventory_items ADD COLUMN shipping_label_uri TEXT;`,
+      `CREATE TABLE IF NOT EXISTS inventory_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        inventory_item_id INTEGER NOT NULL,
+        uri TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (inventory_item_id) REFERENCES inventory_items(id) ON DELETE CASCADE
+      );`,
+      `CREATE INDEX IF NOT EXISTS idx_inventory_photos_item ON inventory_photos(inventory_item_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_inventory_items_barcode ON inventory_items(barcode);`,
+      `CREATE TABLE IF NOT EXISTS sync_meta (
+        key TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL
+      );`,
+    ],
+  },
 ];
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
