@@ -10,8 +10,10 @@ import {
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import type { InventoryItem } from '../models/InventoryItem';
 import type { InventoryStatus } from '../models/InventoryStatus';
+import { getQuickStatusTargets } from '../models/InventoryStatus';
 import { InventoryCard } from './InventoryCard';
 import { updateInventoryStatus } from '../db/inventoryRepository';
+import { formatInventoryNumber } from '../utils/inventoryNumber';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
 
 interface Props {
@@ -19,16 +21,6 @@ interface Props {
   onPress: () => void;
   onStatusChanged?: () => void;
 }
-
-const QUICK: Partial<Record<InventoryStatus, InventoryStatus[]>> = {
-  Added: ['Listed', 'Donated', 'Delisted'],
-  Listed: ['Sold', 'Delisted', 'Donated'],
-  Sold: ['Packed'],
-  Packed: ['Shipped'],
-  Shipped: [],
-  Delisted: ['Listed'],
-  Donated: [],
-};
 
 const ACTION_COLORS: Record<string, string> = {
   Listed: '#3B82F6',
@@ -40,6 +32,8 @@ const ACTION_COLORS: Record<string, string> = {
   Added: '#64748B',
 };
 
+const DESTRUCTIVE: InventoryStatus[] = ['Donated', 'Delisted'];
+
 export function SwipeableInventoryCard({
   item,
   onPress,
@@ -47,18 +41,46 @@ export function SwipeableInventoryCard({
 }: Props) {
   const ref = useRef<Swipeable>(null);
   const isDark = useColorScheme() === 'dark';
-  const actions = QUICK[item.status] ?? [];
+  const actions = getQuickStatusTargets(item.status);
 
   const applyStatus = async (status: InventoryStatus) => {
     ref.current?.close();
-    try {
-      await hapticLight();
-      await updateInventoryStatus(item.id, status, `Quick action → ${status}`);
-      await hapticSuccess();
-      onStatusChanged?.();
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Status update failed');
+    const run = async () => {
+      try {
+        await hapticLight();
+        await updateInventoryStatus(
+          item.id,
+          status,
+          `Quick action → ${status}`
+        );
+        await hapticSuccess();
+        onStatusChanged?.();
+      } catch (e) {
+        Alert.alert(
+          'Error',
+          e instanceof Error ? e.message : 'Status update failed'
+        );
+      }
+    };
+
+    if (DESTRUCTIVE.includes(status)) {
+      Alert.alert(
+        `Mark as ${status}?`,
+        `#${formatInventoryNumber(item.inventory_number)} — ${item.name}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: status,
+            style: 'destructive',
+            onPress: () => {
+              void run();
+            },
+          },
+        ]
+      );
+      return;
     }
+    await run();
   };
 
   const renderRight = (
