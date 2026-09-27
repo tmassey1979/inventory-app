@@ -130,6 +130,32 @@ export async function shareFile(path: string): Promise<void> {
   });
 }
 
+export async function previewImportJson(json: string): Promise<{
+  total: number;
+  willInsert: number;
+  willUpdate: number;
+  photos: number;
+}> {
+  const bundle = JSON.parse(json) as ExportBundle;
+  if (!bundle?.items || !Array.isArray(bundle.items)) {
+    throw new Error('Invalid inventory export file');
+  }
+  const existing = await getAllItemsForExport();
+  const used = new Set(existing.map((i) => i.inventory_number));
+  let willUpdate = 0;
+  let willInsert = 0;
+  for (const item of bundle.items) {
+    if (used.has(item.inventory_number)) willUpdate++;
+    else willInsert++;
+  }
+  return {
+    total: bundle.items.length,
+    willInsert,
+    willUpdate,
+    photos: (bundle.photos ?? []).length,
+  };
+}
+
 export async function importFromJsonString(
   json: string
 ): Promise<{ items: number; photos: number }> {

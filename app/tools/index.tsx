@@ -18,10 +18,12 @@ import {
   exportJsonFile,
   shareFile,
   importFromJsonString,
+  previewImportJson,
 } from '../../src/services/exportImport';
 import { getItemsToShip } from '../../src/db/inventoryRepository';
 import { printShippingChecklist } from '../../src/services/printService';
 import { hapticSuccess, hapticLight } from '../../src/utils/haptics';
+import { markExportCompleted } from '../../src/utils/preferences';
 
 export default function ToolsScreen() {
   const router = useRouter();
@@ -90,7 +92,20 @@ export default function ToolsScreen() {
         onPress={() =>
           run(async () => {
             const path = await exportJsonFile();
-            await shareFile(path);
+            await markExportCompleted();
+            Alert.alert(
+              'Backup ready',
+              'Share or save this file. It includes items, history, photos, and labels.',
+              [
+                {
+                  text: 'Share',
+                  onPress: () => {
+                    void shareFile(path);
+                  },
+                },
+                { text: 'Done', style: 'cancel' },
+              ]
+            );
           })
         }
         color="#8B5CF6"
@@ -101,6 +116,7 @@ export default function ToolsScreen() {
         onPress={() =>
           run(async () => {
             const path = await exportCsvFile();
+            await markExportCompleted();
             await shareFile(path);
           })
         }
@@ -117,11 +133,37 @@ export default function ToolsScreen() {
             });
             if (result.canceled || !result.assets?.[0]) return;
             const json = await FileSystem.readAsStringAsync(result.assets[0].uri);
-            const stats = await importFromJsonString(json);
-            Alert.alert(
-              'Import complete',
-              `Merged ${stats.items} item(s), ${stats.photos} photo(s).`
-            );
+            const preview = await previewImportJson(json);
+            await new Promise<void>((resolve, reject) => {
+              Alert.alert(
+                'Import preview',
+                `${preview.total} item(s) in file\n` +
+                  `• ${preview.willInsert} new\n` +
+                  `• ${preview.willUpdate} update existing\n` +
+                  `• ${preview.photos} photo(s)\n\n` +
+                  'Merge by inventory number?',
+                [
+                  { text: 'Cancel', style: 'cancel', onPress: () => resolve() },
+                  {
+                    text: 'Import',
+                    onPress: () => {
+                      void (async () => {
+                        try {
+                          const stats = await importFromJsonString(json);
+                          Alert.alert(
+                            'Import complete',
+                            `Merged ${stats.items} item(s), ${stats.photos} photo(s).`
+                          );
+                          resolve();
+                        } catch (e) {
+                          reject(e);
+                        }
+                      })();
+                    },
+                  },
+                ]
+              );
+            });
           })
         }
         color="#10B981"
