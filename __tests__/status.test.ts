@@ -1,22 +1,54 @@
 import {
-  INVENTORY_STATUSES,
   isValidStatus,
+  getNextMainStatus,
+  getQuickStatusTargets,
+  MAIN_WORKFLOW,
+  INVENTORY_STATUSES,
 } from '../src/models/InventoryStatus';
 
-describe('InventoryStatus', () => {
-  it('has all required statuses', () => {
-    expect(INVENTORY_STATUSES).toContain('Added');
-    expect(INVENTORY_STATUSES).toContain('Listed');
-    expect(INVENTORY_STATUSES).toContain('Sold');
-    expect(INVENTORY_STATUSES).toContain('Packed');
-    expect(INVENTORY_STATUSES).toContain('Shipped');
-    expect(INVENTORY_STATUSES).toContain('Delisted');
-    expect(INVENTORY_STATUSES).toContain('Donated');
+describe('isValidStatus', () => {
+  it('accepts known statuses', () => {
+    for (const s of INVENTORY_STATUSES) {
+      expect(isValidStatus(s)).toBe(true);
+    }
   });
 
-  it('validates correctly', () => {
-    expect(isValidStatus('Added')).toBe(true);
-    expect(isValidStatus('Invalid')).toBe(false);
+  it('rejects unknown', () => {
+    expect(isValidStatus('Pending')).toBe(false);
     expect(isValidStatus('')).toBe(false);
+  });
+});
+
+describe('getNextMainStatus', () => {
+  it('follows Added → Listed → Sold → Packed → Shipped', () => {
+    expect(getNextMainStatus('Added')).toBe('Listed');
+    expect(getNextMainStatus('Listed')).toBe('Sold');
+    expect(getNextMainStatus('Sold')).toBe('Packed');
+    expect(getNextMainStatus('Packed')).toBe('Shipped');
+    expect(getNextMainStatus('Shipped')).toBeNull();
+  });
+
+  it('returns null off the main path', () => {
+    expect(getNextMainStatus('Delisted')).toBeNull();
+    expect(getNextMainStatus('Donated')).toBeNull();
+  });
+
+  it('MAIN_WORKFLOW length is 5', () => {
+    expect(MAIN_WORKFLOW).toEqual([
+      'Added',
+      'Listed',
+      'Sold',
+      'Packed',
+      'Shipped',
+    ]);
+  });
+});
+
+describe('getQuickStatusTargets', () => {
+  it('suggests sensible targets', () => {
+    expect(getQuickStatusTargets('Added')).toContain('Listed');
+    expect(getQuickStatusTargets('Sold')).toEqual(['Packed']);
+    expect(getQuickStatusTargets('Packed')).toEqual(['Shipped']);
+    expect(getQuickStatusTargets('Shipped')).toEqual([]);
   });
 });

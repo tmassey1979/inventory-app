@@ -1,11 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  useColorScheme,
+  TouchableOpacity,
+} from 'react-native';
 
 interface Props {
   title: string;
   value: string;
   subtitle?: string;
   accentColor?: string;
+  onPress?: () => void;
 }
 
 export function DashboardCard({
@@ -13,18 +20,11 @@ export function DashboardCard({
   value,
   subtitle,
   accentColor = '#3B82F6',
+  onPress,
 }: Props) {
   const isDark = useColorScheme() === 'dark';
-  return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: isDark ? '#1e1e2e' : '#ffffff',
-          borderLeftColor: accentColor,
-        },
-      ]}
-    >
+  const content = (
+    <>
       <Text style={[styles.title, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
         {title}
       </Text>
@@ -36,8 +36,26 @@ export function DashboardCard({
           {subtitle}
         </Text>
       ) : null}
-    </View>
+    </>
   );
+
+  const style = [
+    styles.card,
+    {
+      backgroundColor: isDark ? '#1e1e2e' : '#ffffff',
+      borderLeftColor: accentColor,
+    },
+  ];
+
+  if (onPress) {
+    return (
+      <TouchableOpacity style={style} onPress={onPress} activeOpacity={0.75}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return <View style={style}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
