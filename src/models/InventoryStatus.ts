@@ -23,3 +23,37 @@ export const STATUS_COLORS: Record<InventoryStatus, string> = {
   Delisted: '#6B7280',
   Donated: '#EC4899',
 };
+
+/** Primary resale path: Added → Listed → Sold → Packed → Shipped */
+export const MAIN_WORKFLOW: InventoryStatus[] = [
+  'Added',
+  'Listed',
+  'Sold',
+  'Packed',
+  'Shipped',
+];
+
+/** Next status along the main workflow, or null if at the end / off-path. */
+export function getNextMainStatus(
+  status: InventoryStatus
+): InventoryStatus | null {
+  const idx = MAIN_WORKFLOW.indexOf(status);
+  if (idx < 0 || idx >= MAIN_WORKFLOW.length - 1) return null;
+  return MAIN_WORKFLOW[idx + 1];
+}
+
+/** Suggested quick-action targets for swipe / menus. */
+export function getQuickStatusTargets(
+  status: InventoryStatus
+): InventoryStatus[] {
+  const map: Record<InventoryStatus, InventoryStatus[]> = {
+    Added: ['Listed', 'Donated', 'Delisted'],
+    Listed: ['Sold', 'Delisted', 'Donated'],
+    Sold: ['Packed'],
+    Packed: ['Shipped'],
+    Shipped: [],
+    Delisted: ['Listed'],
+    Donated: [],
+  };
+  return map[status] ?? [];
+}
