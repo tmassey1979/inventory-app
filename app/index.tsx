@@ -139,38 +139,15 @@ export default function DashboardScreen() {
           { color: isDark ? '#F9FAFB' : '#111827', marginTop: 20 },
         ]}
       >
-        Financial Summary
+        Listed value
       </Text>
       <View style={styles.grid}>
         <DashboardCard
-          title="Total Purchase Cost"
-          value={formatCurrency(stats?.totalPurchaseCost)}
-          accentColor="#F59E0B"
-        />
-        <DashboardCard
           title="Current Listed Value"
           value={formatCurrency(stats?.currentListedValue)}
-          subtitle="Items with status Listed"
+          subtitle="Sum of list prices (Listed items)"
           accentColor="#8B5CF6"
           onPress={() => openStatus('Listed')}
-        />
-        <DashboardCard
-          title="Total Sales"
-          value={formatCurrency(stats?.totalSales)}
-          subtitle="Sold / Packed / Shipped"
-          accentColor="#10B981"
-        />
-        <DashboardCard
-          title="Actual Profit"
-          value={formatCurrency(stats?.actualProfit)}
-          subtitle="Sale − Purchase"
-          accentColor={(stats?.actualProfit ?? 0) >= 0 ? '#10B981' : '#EF4444'}
-        />
-        <DashboardCard
-          title="Net Profit"
-          value={formatCurrency(stats?.netProfit)}
-          subtitle="Sale − cost − fees − shipping"
-          accentColor={(stats?.netProfit ?? 0) >= 0 ? '#10B981' : '#EF4444'}
         />
         <DashboardCard
           title="To Ship"
