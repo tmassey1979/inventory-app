@@ -1,18 +1,17 @@
 import { Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
-/** Light haptic; no-ops if expo-haptics is unavailable */
+/** Light haptic; no-ops on failure (e.g. web / missing hardware) */
 export async function hapticLight(): Promise<void> {
   try {
-    const Haptics = await import('expo-haptics');
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   } catch {
-    // optional dependency / web
+    // ignore
   }
 }
 
 export async function hapticSuccess(): Promise<void> {
   try {
-    const Haptics = await import('expo-haptics');
     if (Platform.OS === 'ios') {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
@@ -25,7 +24,6 @@ export async function hapticSuccess(): Promise<void> {
 
 export async function hapticWarning(): Promise<void> {
   try {
-    const Haptics = await import('expo-haptics');
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   } catch {
     // ignore
