@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dragon Inventory",
     "slug": "inventory-app",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -20,7 +20,9 @@
         "NSCameraUsageDescription": "This app needs camera access to photograph inventory items and scan barcodes.",
         "NSPhotoLibraryUsageDescription": "This app needs photo library access to select inventory photos and shipping labels.",
         "NSLocalNetworkUsageDescription": "Used to sync inventory with other devices on your Wi-Fi without a cloud backend.",
-        "NSBonjourServices": ["_inventory-sync._tcp"]
+        "NSBonjourServices": [
+          "_inventory-sync._tcp"
+        ]
       }
     },
     "android": {
@@ -38,7 +40,7 @@
         "android.permission.ACCESS_WIFI_STATE",
         "android.permission.CHANGE_WIFI_MULTICAST_STATE"
       ],
-      "versionCode": 2
+      "versionCode": 3
     },
     "plugins": [
       "expo-router",
