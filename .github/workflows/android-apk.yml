@@ -2,9 +2,6 @@ name: Android Preview APK
 
 on:
   workflow_dispatch:
-  # Optional: also on push after EAS is linked
-  # push:
-  #   branches: [main]
 
 concurrency:
   group: android-apk-${{ github.ref }}
@@ -26,7 +23,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Verify EXPO_TOKEN secret
         env:
@@ -65,11 +62,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Setup EAS CLI
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
 
       - name: Build Android APK (EAS preview)
         id: eas_build
