@@ -15,6 +15,9 @@
     "eas:build:android:local": "eas build --platform android --profile preview --local"
   },
   "dependencies": {
+    "@react-navigation/bottom-tabs": "^7.2.0",
+    "@react-navigation/native": "^7.0.14",
+    "@react-navigation/native-stack": "^7.2.0",
     "expo": "~52.0.0",
     "expo-asset": "~11.0.5",
     "expo-camera": "~16.0.0",
@@ -33,6 +36,7 @@
     "expo-sharing": "~13.0.0",
     "expo-sqlite": "~15.0.0",
     "expo-status-bar": "~2.0.0",
+    "query-string": "^9.1.1",
     "react": "18.3.1",
     "react-native": "0.76.3",
     "react-native-gesture-handler": "~2.20.0",
