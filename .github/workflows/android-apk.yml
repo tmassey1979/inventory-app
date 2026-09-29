@@ -1,3 +1,5 @@
+# Manual-only APK build (also bumps version).
+# Automatic packaging runs from CI after tests succeed on main.
 name: Android Preview APK
 
 on:
@@ -19,6 +21,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -43,32 +48,41 @@ jobs:
           fi
           echo "EAS projectId: $(jq -r '.expo.extra.eas.projectId' app.json)"
 
-      - name: Verify required Expo packages in package.json
-        run: |
-          set -euo pipefail
-          echo "Commit: $(git rev-parse --short HEAD)"
-          for pkg in expo-asset expo-font expo-keep-awake; do
-            if ! jq -e --arg p "$pkg" '.dependencies[$p]' package.json >/dev/null; then
-              echo "::error::Missing dependency $pkg in package.json"
-              exit 1
-            fi
-            echo "OK $pkg = $(jq -r --arg p "$pkg" '.dependencies[$p]' package.json)"
-          done
-
-      - name: Read app version
+      - name: Bump version (patch + versionCode)
         id: version
         run: |
-          VER=$(jq -r '.expo.version' app.json)
-          CODE=$(jq -r '.expo.android.versionCode // 1' app.json)
-          TAG="android-v${VER}-${{ github.run_number }}"
-          echo "version=$VER" >> "$GITHUB_OUTPUT"
-          echo "version_code=$CODE" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          OLD_VER=$(jq -r '.expo.version' app.json)
+          OLD_CODE=$(jq -r '.expo.android.versionCode // 1' app.json)
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VER"
+          PATCH=$((PATCH + 1))
+          NEW_VER="${MAJOR}.${MINOR}.${PATCH}"
+          NEW_CODE=$((OLD_CODE + 1))
+
+          jq --arg v "$NEW_VER" --argjson c "$NEW_CODE" \
+            '.expo.version = $v | .expo.android.versionCode = $c' app.json > app.json.tmp
+          mv app.json.tmp app.json
+
+          jq --arg v "$NEW_VER" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+
+          TAG="android-v${NEW_VER}"
+          echo "version=$NEW_VER" >> "$GITHUB_OUTPUT"
+          echo "version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Bumped ${OLD_VER} (code ${OLD_CODE}) → ${NEW_VER} (code ${NEW_CODE})"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.json package.json
+          git commit -m "chore: bump version to ${NEW_VER} (versionCode ${NEW_CODE}) [skip ci]"
+          git push origin HEAD:main
 
       - name: Install dependencies
         run: npm install
 
-      - name: Ensure Android/iOS icon assets exist
+      - name: Ensure icon assets exist
         run: python3 scripts/ensure_icons.py
 
       - name: Install EAS CLI
@@ -88,7 +102,6 @@ jobs:
             --no-wait \
             --json > eas-build-start.json
 
-          echo "=== EAS build started ==="
           cat eas-build-start.json
 
           BUILD_ID=$(jq -r 'if type=="array" then .[0].id else .id end' eas-build-start.json)
@@ -98,14 +111,12 @@ jobs:
             exit 1
           fi
           echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
-          echo "Build ID: $BUILD_ID"
 
           STATUS="in-queue"
           while true; do
             eas build:view "$BUILD_ID" --json > eas-build-status.json 2>/dev/null || true
             STATUS=$(jq -r '.status // empty' eas-build-status.json | tr '[:upper:]' '[:lower:]')
             echo "Status: $STATUS"
-            jq '{status, error, errorMessage, errorCode, message}' eas-build-status.json 2>/dev/null || true
             case "$STATUS" in
               finished|errored|canceled|cancelled|expired)
                 break
@@ -119,36 +130,20 @@ jobs:
           if [ "$STATUS" != "finished" ]; then
             echo "::error::EAS build ended with status: $STATUS"
             cat eas-build-status.json
-            ERR=$(jq -r '.errorMessage // .error // .message // empty' eas-build-status.json)
-            if [ -n "$ERR" ]; then
-              echo "::error::EAS error: $ERR"
-            fi
             exit 1
           fi
 
           APK_URL=$(jq -r '.artifacts.applicationArchiveUrl // .artifacts.buildUrl // empty' eas-build-status.json)
           if [ -z "$APK_URL" ] || [ "$APK_URL" = "null" ]; then
             echo "::error::No APK download URL"
-            cat eas-build-status.json
             exit 1
           fi
-
           echo "APK_URL=$APK_URL" >> "$GITHUB_ENV"
-
-          {
-            echo "## Android preview APK"
-            echo ""
-            echo "- **Build ID:** \`$BUILD_ID\`"
-            echo "- **Status:** $STATUS"
-            echo "- **Download APK:** [$APK_URL]($APK_URL)"
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download APK to runner
         env:
           APK_URL: ${{ env.APK_URL }}
-        run: |
-          curl -fsSL -o inventory-manager-preview.apk "$APK_URL"
-          ls -lh inventory-manager-preview.apk
+        run: curl -fsSL -o inventory-manager-preview.apk "$APK_URL"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -162,21 +157,17 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: Inventory Manager Android ${{ steps.version.outputs.version }} (build ${{ github.run_number }})
+          name: Dragon Inventory Android ${{ steps.version.outputs.version }}
           body: |
-            Standalone Android preview APK — does not require Expo Go.
+            Standalone Android APK — does not require Expo Go.
 
             | | |
             |---|---|
             | App version | `${{ steps.version.outputs.version }}` |
             | versionCode | `${{ steps.version.outputs.version_code }}` |
-            | Workflow run | ${{ github.run_number }} |
-            | Commit | `${{ github.sha }}` |
             | EAS build | `${{ env.BUILD_ID }}` |
 
             Download **inventory-manager-preview.apk** from Assets below.
-
-            EAS URL: ${{ env.APK_URL }}
           files: inventory-manager-preview.apk
           draft: false
           prerelease: true
