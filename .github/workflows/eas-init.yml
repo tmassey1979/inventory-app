@@ -32,7 +32,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Verify EXPO_TOKEN
         env:
@@ -61,7 +60,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # If projectId already present, skip create
           if jq -e '.expo.extra.eas.projectId' app.json >/dev/null 2>&1; then
             echo "EAS projectId already present in app.json:"
             jq -r '.expo.extra.eas.projectId' app.json
@@ -70,9 +68,7 @@ jobs:
           fi
 
           echo "Linking project to EAS (non-interactive)…"
-          # Creates Expo project if needed and writes extra.eas.projectId into app.json
           npx eas-cli init --non-interactive --force 2>&1 | tee eas-init.log || {
-            # Older CLI variants
             npx eas-cli project:init --non-interactive 2>&1 | tee -a eas-init.log || true
           }
 
@@ -96,7 +92,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Always remove this one-time workflow after a successful run
           if [ -f .github/workflows/eas-init.yml ]; then
             git rm -f .github/workflows/eas-init.yml
           fi
@@ -120,6 +115,6 @@ jobs:
             if jq -e '.expo.extra.eas.projectId' app.json >/dev/null 2>&1; then
               echo "- **projectId:** \`$(jq -r '.expo.extra.eas.projectId' app.json)\`"
             fi
-            echo "- One-time workflow \`.github/workflows/eas-init.yml\` removed from \`main\` (if it was still present)."
-            echo "- You can now run **Android Preview APK** to build and publish a release."
+            echo "- One-time workflow removed from main (if present)."
+            echo "- Next: run **Android Preview APK**."
           } >> "$GITHUB_STEP_SUMMARY"
