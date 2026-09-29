@@ -2,6 +2,7 @@ import type { InventoryStatus } from './InventoryStatus';
 
 export type MarketplacePlatform =
   | 'eBay'
+  | 'Vinted'
   | 'Facebook'
   | 'Poshmark'
   | 'Mercari'
@@ -103,6 +104,7 @@ export function computeNetProfit(item: {
 
 export const MARKETPLACE_PLATFORMS = [
   'eBay',
+  'Vinted',
   'Facebook',
   'Poshmark',
   'Mercari',
