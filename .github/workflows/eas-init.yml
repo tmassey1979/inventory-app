@@ -1,9 +1,4 @@
-# ONE-TIME workflow: links this repo to an Expo/EAS project and commits projectId.
-# Run once from Actions → "EAS Init (one-time)" → Run workflow.
-# On success it commits app.json and deletes this workflow file from main.
-#
-# Prerequisites: repository secret EXPO_TOKEN (Expo access token).
-
+# ONE-TIME: links Expo/EAS project, commits projectId, deletes this workflow.
 name: EAS Init (one-time)
 
 on:
@@ -20,7 +15,7 @@ jobs:
   init:
     name: Link EAS project
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -31,7 +26,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Verify EXPO_TOKEN
         env:
@@ -39,8 +34,6 @@ jobs:
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::EXPO_TOKEN secret is not set."
-            echo "Create a token at https://expo.dev/settings/access-tokens"
-            echo "Add it under Settings → Secrets and variables → Actions as EXPO_TOKEN"
             exit 1
           fi
           echo "EXPO_TOKEN is configured."
@@ -48,11 +41,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Setup EAS CLI
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
 
       - name: Initialize / link EAS project
         env:
@@ -61,32 +51,27 @@ jobs:
           set -euo pipefail
 
           if jq -e '.expo.extra.eas.projectId' app.json >/dev/null 2>&1; then
-            echo "EAS projectId already present in app.json:"
-            jq -r '.expo.extra.eas.projectId' app.json
-            echo "SKIP_INIT=true" >> "$GITHUB_ENV"
+            echo "Already linked: $(jq -r '.expo.extra.eas.projectId' app.json)"
             exit 0
           fi
 
-          echo "Linking project to EAS (non-interactive)…"
-          npx eas-cli init --non-interactive --force 2>&1 | tee eas-init.log || {
-            npx eas-cli project:init --non-interactive 2>&1 | tee -a eas-init.log || true
-          }
+          echo "Linking project to EAS…"
+          eas init --non-interactive --force 2>&1 | tee eas-init.log || true
 
           if ! jq -e '.expo.extra.eas.projectId' app.json >/dev/null 2>&1; then
-            echo "::error::eas init did not write expo.extra.eas.projectId to app.json"
-            echo "Log:"
+            eas project:init --non-interactive 2>&1 | tee -a eas-init.log || true
+          fi
+
+          if ! jq -e '.expo.extra.eas.projectId' app.json >/dev/null 2>&1; then
+            echo "::error::eas init did not write projectId"
             cat eas-init.log || true
-            echo "Current app.json extra:"
-            jq '.expo.extra // {}' app.json || true
+            jq '.' app.json || true
             exit 1
           fi
 
           echo "Linked projectId: $(jq -r '.expo.extra.eas.projectId' app.json)"
-          echo "SKIP_INIT=false" >> "$GITHUB_ENV"
 
-      - name: Commit projectId and remove this one-time workflow
-        env:
-          SKIP_INIT: ${{ env.SKIP_INIT }}
+      - name: Commit projectId and remove one-time workflow
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -95,26 +80,22 @@ jobs:
           if [ -f .github/workflows/eas-init.yml ]; then
             git rm -f .github/workflows/eas-init.yml
           fi
-
           git add app.json 2>/dev/null || true
 
           if git diff --cached --quiet; then
-            echo "No changes to commit (project already linked and workflow already removed)."
+            echo "No changes to commit."
             exit 0
           fi
 
           git commit -m "chore: link EAS projectId and remove one-time eas-init workflow"
           git push origin HEAD:main
-          echo "Pushed app.json projectId and removed eas-init.yml"
 
       - name: Summary
         run: |
           {
             echo "## EAS init complete"
-            echo ""
             if jq -e '.expo.extra.eas.projectId' app.json >/dev/null 2>&1; then
               echo "- **projectId:** \`$(jq -r '.expo.extra.eas.projectId' app.json)\`"
             fi
-            echo "- One-time workflow removed from main (if present)."
-            echo "- Next: run **Android Preview APK**."
+            echo "- Next: run **Android Preview APK**"
           } >> "$GITHUB_STEP_SUMMARY"
