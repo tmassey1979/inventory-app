@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Inventory Manager",
+    "name": "Dragon Inventory",
     "slug": "inventory-app",
     "version": "1.1.0",
     "orientation": "portrait",
@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1a1a2e"
+      "backgroundColor": "#0f0c1c"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,16 +19,14 @@
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs camera access to photograph inventory items and scan barcodes.",
         "NSPhotoLibraryUsageDescription": "This app needs photo library access to select inventory photos and shipping labels.",
-        "NSLocalNetworkUsageDescription": "Used to sync inventory with other devices on your Wi‑Fi without a cloud backend.",
-        "NSBonjourServices": [
-          "_inventory-sync._tcp"
-        ]
+        "NSLocalNetworkUsageDescription": "Used to sync inventory with other devices on your Wi-Fi without a cloud backend.",
+        "NSBonjourServices": ["_inventory-sync._tcp"]
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1a1a2e"
+        "backgroundColor": "#0f0c1c"
       },
       "package": "com.inventory.app",
       "permissions": [
@@ -38,37 +36,32 @@
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_WIFI_STATE",
-        "android.permission.CHANGE_WIFI_MULTICAST_STATE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CHANGE_WIFI_MULTICAST_STATE"
       ],
-      "versionCode": 1
+      "versionCode": 2
     },
     "plugins": [
       "expo-router",
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Inventory Manager to access your photos to attach to inventory items and shipping labels.",
-          "cameraPermission": "Allow Inventory Manager to use the camera to photograph inventory items and scan barcodes."
+          "photosPermission": "Allow Dragon Inventory to access your photos for inventory items and shipping labels.",
+          "cameraPermission": "Allow Dragon Inventory to use the camera for photos and barcodes."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Inventory Manager to use the camera for barcodes and item photos.",
+          "cameraPermission": "Allow Dragon Inventory to use the camera for barcodes and item photos.",
           "barcodeScannerEnabled": true
         }
       ],
       "expo-sqlite"
     ],
     "extra": {
-      "router": {
-        "origin": false
-      },
       "eas": {
         "projectId": "ffbf9bc9-6203-4ee1-a985-2347f21679d8"
       }
-    },
-    "owner": "tmassey1979"
+    }
   }
 }
