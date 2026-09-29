@@ -1,0 +1,195 @@
+name: Android Preview APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# EAS cloud builds can take 15–25 minutes
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: EAS Android preview (APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Verify EXPO_TOKEN secret
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN secret is not set."
+            echo "Create an Expo access token at https://expo.dev/settings/access-tokens"
+            echo "Then add it as a repository secret named EXPO_TOKEN:"
+            echo "  Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+          echo "EXPO_TOKEN is configured."
+
+      - name: Check EAS project is linked
+        run: |
+          if ! jq -e '.expo.extra.eas.projectId' app.json >/dev/null 2>&1; then
+            echo "::error::No EAS projectId in app.json."
+            echo "Run the one-time workflow: Actions → EAS Init (one-time) → Run workflow"
+            echo "Or locally: npx eas-cli login && npx eas-cli init"
+            exit 1
+          fi
+          echo "EAS projectId: $(jq -r '.expo.extra.eas.projectId' app.json)"
+
+      - name: Read app version
+        id: version
+        run: |
+          VER=$(jq -r '.expo.version' app.json)
+          CODE=$(jq -r '.expo.android.versionCode // 1' app.json)
+          TAG="android-v${VER}-${{ github.run_number }}"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "version_code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release tag will be: $TAG"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android APK (EAS preview)
+        id: eas_build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          eas build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --no-wait \
+            --json > eas-build-start.json
+
+          echo "=== EAS build started ==="
+          cat eas-build-start.json
+
+          BUILD_ID=$(jq -r 'if type=="array" then .[0].id else .id end' eas-build-start.json)
+          if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
+            echo "::error::Could not parse EAS build id from response"
+            cat eas-build-start.json
+            exit 1
+          fi
+          echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
+          echo "Build ID: $BUILD_ID"
+
+          STATUS="in-queue"
+          while true; do
+            eas build:view "$BUILD_ID" --json > eas-build-status.json 2>/dev/null || true
+            STATUS=$(jq -r '.status // empty' eas-build-status.json)
+            echo "Status: $STATUS"
+            case "$STATUS" in
+              finished|errored|canceled|expired)
+                break
+                ;;
+              *)
+                sleep 30
+                ;;
+            esac
+          done
+
+          if [ "$STATUS" != "finished" ]; then
+            echo "::error::EAS build ended with status: $STATUS"
+            cat eas-build-status.json
+            exit 1
+          fi
+
+          APK_URL=$(jq -r '.artifacts.applicationArchiveUrl // .artifacts.buildUrl // empty' eas-build-status.json)
+          if [ -z "$APK_URL" ] || [ "$APK_URL" = "null" ]; then
+            echo "::error::No APK download URL in EAS response"
+            cat eas-build-status.json
+            exit 1
+          fi
+
+          echo "APK_URL=$APK_URL" >> "$GITHUB_ENV"
+          echo "apk_url=$APK_URL" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Android preview APK"
+            echo ""
+            echo "- **Build ID:** \`$BUILD_ID\`"
+            echo "- **Status:** $STATUS"
+            echo "- **Download APK:** [$APK_URL]($APK_URL)"
+            echo ""
+            echo "This APK is standalone — no Expo Go or dev server required."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Download APK to runner
+        env:
+          APK_URL: ${{ env.APK_URL }}
+        run: |
+          set -euo pipefail
+          echo "Downloading APK from: $APK_URL"
+          curl -fsSL -o inventory-manager-preview.apk "$APK_URL"
+          ls -lh inventory-manager-preview.apk
+          file inventory-manager-preview.apk || true
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-preview-apk
+          path: inventory-manager-preview.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Inventory Manager Android ${{ steps.version.outputs.version }} (build ${{ github.run_number }})
+          body: |
+            Standalone Android preview APK — **does not require Expo Go**.
+
+            | | |
+            |---|---|
+            | App version | `${{ steps.version.outputs.version }}` |
+            | versionCode | `${{ steps.version.outputs.version_code }}` |
+            | Workflow run | ${{ github.run_number }} |
+            | Commit | `${{ github.sha }}` |
+            | EAS build | `${{ env.BUILD_ID }}` |
+
+            ### Install
+            1. Download **inventory-manager-preview.apk** from the Assets below.
+            2. On your phone, open the file and allow install from that source if asked.
+            3. Launch **Inventory Manager**.
+
+            EAS artifact URL (backup): ${{ env.APK_URL }}
+          files: inventory-manager-preview.apk
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Print links
+        run: |
+          echo "Artifact: android-preview-apk"
+          echo "Release tag: ${{ steps.version.outputs.tag }}"
+          echo "Releases: https://github.com/${{ github.repository }}/releases"
+          echo "EAS APK URL: ${{ env.APK_URL }}"
