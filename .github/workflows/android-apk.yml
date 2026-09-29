@@ -1,12 +1,11 @@
 name: Android Preview APK
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+  # Optional: also on push after EAS is linked
+  # push:
+  #   branches: [main]
 
-# EAS cloud builds can take 15–25 minutes
 concurrency:
   group: android-apk-${{ github.ref }}
   cancel-in-progress: true
@@ -28,7 +27,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Verify EXPO_TOKEN secret
         env:
