@@ -2,16 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
   test:
-    name: Install, Typecheck & Test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,15 +16,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          # No cache: package-lock.json is not committed
+          node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --no-fund --no-audit
+        run: npm install
 
       - name: Typecheck
         run: npx tsc --noEmit
-        continue-on-error: true
 
       - name: Run unit tests
         run: npm test -- --ci --coverage --passWithNoTests
