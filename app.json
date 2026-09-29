@@ -38,7 +38,8 @@
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_WIFI_STATE",
-        "android.permission.CHANGE_WIFI_MULTICAST_STATE"
+        "android.permission.CHANGE_WIFI_MULTICAST_STATE",
+        "android.permission.RECORD_AUDIO"
       ],
       "versionCode": 1
     },
@@ -59,6 +60,15 @@
         }
       ],
       "expo-sqlite"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "ffbf9bc9-6203-4ee1-a985-2347f21679d8"
+      }
+    },
+    "owner": "tmassey1979"
   }
 }
