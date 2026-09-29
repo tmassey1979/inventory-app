@@ -10,7 +10,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "eas:build:android": "eas build --platform android --profile preview --non-interactive",
+    "eas:build:android:local": "eas build --platform android --profile preview --local"
   },
   "dependencies": {
     "expo": "~52.0.0",

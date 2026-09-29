@@ -6,34 +6,51 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "inventory",
+    "scheme": "inventory-app",
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0f0f1a"
+      "backgroundColor": "#1a1a2e"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.inventory.manager",
+      "bundleIdentifier": "com.inventory.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Allow Inventory Manager to use the camera for barcodes and item photos.",
-        "NSPhotoLibraryUsageDescription": "Allow Inventory Manager to access photos for item images and shipping labels."
+        "NSCameraUsageDescription": "This app needs camera access to photograph inventory items and scan barcodes.",
+        "NSPhotoLibraryUsageDescription": "This app needs photo library access to select inventory photos and shipping labels.",
+        "NSLocalNetworkUsageDescription": "Used to sync inventory with other devices on your Wi‑Fi without a cloud backend.",
+        "NSBonjourServices": [
+          "_inventory-sync._tcp"
+        ]
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0f0f1a"
+        "backgroundColor": "#1a1a2e"
       },
-      "package": "com.inventory.manager",
+      "package": "com.inventory.app",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
-      ]
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_WIFI_MULTICAST_STATE"
+      ],
+      "versionCode": 1
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Inventory Manager to access your photos to attach to inventory items and shipping labels.",
+          "cameraPermission": "Allow Inventory Manager to use the camera to photograph inventory items and scan barcodes."
+        }
+      ],
       [
         "expo-camera",
         {
