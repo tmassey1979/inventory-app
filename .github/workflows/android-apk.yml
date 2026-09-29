@@ -43,7 +43,6 @@ jobs:
           if ! jq -e '.expo.extra.eas.projectId' app.json >/dev/null 2>&1; then
             echo "::error::No EAS projectId in app.json."
             echo "Run the one-time workflow: Actions → EAS Init (one-time) → Run workflow"
-            echo "Or locally: npx eas-cli login && npx eas-cli init"
             exit 1
           fi
           echo "EAS projectId: $(jq -r '.expo.extra.eas.projectId' app.json)"
@@ -61,6 +60,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Ensure Android/iOS icon assets exist
+        run: python3 scripts/ensure_icons.py
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
@@ -94,10 +96,11 @@ jobs:
           STATUS="in-queue"
           while true; do
             eas build:view "$BUILD_ID" --json > eas-build-status.json 2>/dev/null || true
-            STATUS=$(jq -r '.status // empty' eas-build-status.json)
+            STATUS=$(jq -r '.status // empty' eas-build-status.json | tr '[:upper:]' '[:lower:]')
             echo "Status: $STATUS"
+            jq '{status, error, errorMessage, errorCode, message}' eas-build-status.json 2>/dev/null || true
             case "$STATUS" in
-              finished|errored|canceled|expired)
+              finished|errored|canceled|cancelled|expired)
                 break
                 ;;
               *)
@@ -108,7 +111,12 @@ jobs:
 
           if [ "$STATUS" != "finished" ]; then
             echo "::error::EAS build ended with status: $STATUS"
+            echo "Full EAS status JSON:"
             cat eas-build-status.json
+            ERR=$(jq -r '.errorMessage // .error // .message // empty' eas-build-status.json)
+            if [ -n "$ERR" ]; then
+              echo "::error::EAS error: $ERR"
+            fi
             exit 1
           fi
 
@@ -120,7 +128,6 @@ jobs:
           fi
 
           echo "APK_URL=$APK_URL" >> "$GITHUB_ENV"
-          echo "apk_url=$APK_URL" >> "$GITHUB_OUTPUT"
 
           {
             echo "## Android preview APK"
@@ -137,10 +144,8 @@ jobs:
           APK_URL: ${{ env.APK_URL }}
         run: |
           set -euo pipefail
-          echo "Downloading APK from: $APK_URL"
           curl -fsSL -o inventory-manager-preview.apk "$APK_URL"
           ls -lh inventory-manager-preview.apk
-          file inventory-manager-preview.apk || true
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -184,4 +189,3 @@ jobs:
           echo "Artifact: android-preview-apk"
           echo "Release tag: ${{ steps.version.outputs.tag }}"
           echo "Releases: https://github.com/${{ github.repository }}/releases"
-          echo "EAS APK URL: ${{ env.APK_URL }}"
