@@ -31,9 +31,6 @@ jobs:
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::EXPO_TOKEN secret is not set."
-            echo "Create an Expo access token at https://expo.dev/settings/access-tokens"
-            echo "Then add it as a repository secret named EXPO_TOKEN:"
-            echo "  Settings → Secrets and variables → Actions → New repository secret"
             exit 1
           fi
           echo "EXPO_TOKEN is configured."
@@ -42,10 +39,21 @@ jobs:
         run: |
           if ! jq -e '.expo.extra.eas.projectId' app.json >/dev/null 2>&1; then
             echo "::error::No EAS projectId in app.json."
-            echo "Run the one-time workflow: Actions → EAS Init (one-time) → Run workflow"
             exit 1
           fi
           echo "EAS projectId: $(jq -r '.expo.extra.eas.projectId' app.json)"
+
+      - name: Verify required Expo packages in package.json
+        run: |
+          set -euo pipefail
+          echo "Commit: $(git rev-parse --short HEAD)"
+          for pkg in expo-asset expo-font expo-keep-awake; do
+            if ! jq -e --arg p "$pkg" '.dependencies[$p]' package.json >/dev/null; then
+              echo "::error::Missing dependency $pkg in package.json"
+              exit 1
+            fi
+            echo "OK $pkg = $(jq -r --arg p "$pkg" '.dependencies[$p]' package.json)"
+          done
 
       - name: Read app version
         id: version
@@ -56,7 +64,6 @@ jobs:
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "version_code=$CODE" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Release tag will be: $TAG"
 
       - name: Install dependencies
         run: npm install
@@ -86,7 +93,7 @@ jobs:
 
           BUILD_ID=$(jq -r 'if type=="array" then .[0].id else .id end' eas-build-start.json)
           if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
-            echo "::error::Could not parse EAS build id from response"
+            echo "::error::Could not parse EAS build id"
             cat eas-build-start.json
             exit 1
           fi
@@ -111,7 +118,6 @@ jobs:
 
           if [ "$STATUS" != "finished" ]; then
             echo "::error::EAS build ended with status: $STATUS"
-            echo "Full EAS status JSON:"
             cat eas-build-status.json
             ERR=$(jq -r '.errorMessage // .error // .message // empty' eas-build-status.json)
             if [ -n "$ERR" ]; then
@@ -122,7 +128,7 @@ jobs:
 
           APK_URL=$(jq -r '.artifacts.applicationArchiveUrl // .artifacts.buildUrl // empty' eas-build-status.json)
           if [ -z "$APK_URL" ] || [ "$APK_URL" = "null" ]; then
-            echo "::error::No APK download URL in EAS response"
+            echo "::error::No APK download URL"
             cat eas-build-status.json
             exit 1
           fi
@@ -135,15 +141,12 @@ jobs:
             echo "- **Build ID:** \`$BUILD_ID\`"
             echo "- **Status:** $STATUS"
             echo "- **Download APK:** [$APK_URL]($APK_URL)"
-            echo ""
-            echo "This APK is standalone — no Expo Go or dev server required."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download APK to runner
         env:
           APK_URL: ${{ env.APK_URL }}
         run: |
-          set -euo pipefail
           curl -fsSL -o inventory-manager-preview.apk "$APK_URL"
           ls -lh inventory-manager-preview.apk
 
@@ -161,7 +164,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Inventory Manager Android ${{ steps.version.outputs.version }} (build ${{ github.run_number }})
           body: |
-            Standalone Android preview APK — **does not require Expo Go**.
+            Standalone Android preview APK — does not require Expo Go.
 
             | | |
             |---|---|
@@ -171,21 +174,12 @@ jobs:
             | Commit | `${{ github.sha }}` |
             | EAS build | `${{ env.BUILD_ID }}` |
 
-            ### Install
-            1. Download **inventory-manager-preview.apk** from the Assets below.
-            2. On your phone, open the file and allow install from that source if asked.
-            3. Launch **Inventory Manager**.
+            Download **inventory-manager-preview.apk** from Assets below.
 
-            EAS artifact URL (backup): ${{ env.APK_URL }}
+            EAS URL: ${{ env.APK_URL }}
           files: inventory-manager-preview.apk
           draft: false
           prerelease: true
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Print links
-        run: |
-          echo "Artifact: android-preview-apk"
-          echo "Release tag: ${{ steps.version.outputs.tag }}"
-          echo "Releases: https://github.com/${{ github.repository }}/releases"
