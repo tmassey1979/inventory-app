@@ -16,15 +16,16 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.inventory.app",
+      "buildNumber": "2",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs camera access to photograph inventory items and scan barcodes.",
         "NSPhotoLibraryUsageDescription": "This app needs photo library access to select inventory photos and shipping labels.",
         "NSLocalNetworkUsageDescription": "Used to sync inventory with other devices on your Wi-Fi without a cloud backend.",
         "NSBonjourServices": [
           "_inventory-sync._tcp"
-        ]
-      },
-      "buildNumber": "2"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

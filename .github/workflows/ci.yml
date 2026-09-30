@@ -8,14 +8,14 @@ on:
   workflow_dispatch:
     inputs:
       platforms:
-        description: Platforms to package after tests (main only)
+        description: Platforms to package after tests (main only). Use ios/all only after Apple credentials are set in Expo.
         required: true
-        default: all
+        default: android
         type: choice
         options:
-          - all
           - android
           - ios
+          - all
 
 permissions:
   contents: write
@@ -65,8 +65,19 @@ jobs:
       - name: Resolve platforms
         id: platforms
         run: |
-          INPUT="${{ github.event.inputs.platforms || 'all' }}"
-          case "$INPUT" in android) echo list=android >> $GITHUB_OUTPUT ;; ios) echo list=ios >> $GITHUB_OUTPUT ;; *) echo 'list=android ios' >> $GITHUB_OUTPUT ;; esac
+          # On push, default to Android only (iOS needs one-time Apple credentials in Expo).
+          # Manual workflow_dispatch can choose ios or all.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            INPUT="${{ github.event.inputs.platforms }}"
+          else
+            INPUT="android"
+          fi
+          case "$INPUT" in
+            ios) echo "list=ios" >> "$GITHUB_OUTPUT" ;;
+            all) echo "list=android ios" >> "$GITHUB_OUTPUT" ;;
+            *) echo "list=android" >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "Building: $INPUT"
       - name: Bump version
         id: version
         run: |
@@ -93,49 +104,89 @@ jobs:
       - run: python3 scripts/ensure_icons.py
       - run: npm install -g eas-cli
       - name: EAS builds
+        id: eas
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           PLATFORMS: ${{ steps.platforms.outputs.list }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          FAILED=""
           for PLATFORM in $PLATFORMS; do
-            eas build --platform "$PLATFORM" --profile preview --non-interactive --no-wait --json > eas-start-$PLATFORM.json
-            BUILD_ID=$(jq -r 'if type=="array" then .[0].id else .id end' eas-start-$PLATFORM.json)
-            if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = null ]; then echo "::error::no build id"; cat eas-start-$PLATFORM.json; exit 1; fi
-            echo "${PLATFORM}_BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+            echo "::group::EAS $PLATFORM"
+            if ! eas build --platform "$PLATFORM" --profile preview --non-interactive --no-wait --json > "eas-start-$PLATFORM.json"; then
+              echo "::warning::$PLATFORM failed to start"
+              cat "eas-start-$PLATFORM.json" || true
+              if [ "$PLATFORM" = "android" ]; then exit 1; fi
+              FAILED="$FAILED $PLATFORM(start)"
+              continue
+            fi
+            BUILD_ID=$(jq -r 'if type=="array" then .[0].id else .id end' "eas-start-$PLATFORM.json")
+            if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
+              echo "::error::no build id for $PLATFORM"
+              cat "eas-start-$PLATFORM.json" || true
+              if [ "$PLATFORM" = "android" ]; then exit 1; fi
+              FAILED="$FAILED $PLATFORM(id)"
+              continue
+            fi
+            echo "${PLATFORM}_BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
+            STATUS="in_queue"
             while true; do
-              eas build:view "$BUILD_ID" --json > eas-status-$PLATFORM.json || true
-              STATUS=$(jq -r '.status // empty' eas-status-$PLATFORM.json | tr A-Z a-z)
+              eas build:view "$BUILD_ID" --json > "eas-status-$PLATFORM.json" || true
+              STATUS=$(jq -r '.status // empty' "eas-status-$PLATFORM.json" | tr '[:upper:]' '[:lower:]')
               echo "$PLATFORM $STATUS"
               case "$STATUS" in finished|errored|canceled|cancelled|expired) break ;; *) sleep 30 ;; esac
             done
-            if [ "$STATUS" != finished ]; then
-              echo "::error::$PLATFORM failed: $STATUS"; cat eas-status-$PLATFORM.json
-              if [ "$PLATFORM" = ios ]; then echo '::error::iOS needs Apple Developer credentials in Expo (eas credentials)'; fi
-              exit 1
+            if [ "$STATUS" != "finished" ]; then
+              echo "::warning::$PLATFORM build status: $STATUS"
+              cat "eas-status-$PLATFORM.json" || true
+              if [ "$PLATFORM" = "ios" ]; then
+                echo "::warning::iOS needs Apple credentials configured once: npx eas-cli credentials -p ios"
+              fi
+              if [ "$PLATFORM" = "android" ]; then exit 1; fi
+              FAILED="$FAILED $PLATFORM($STATUS)"
+              continue
             fi
-            ART=$(jq -r '.artifacts.applicationArchiveUrl // .artifacts.buildUrl // empty' eas-status-$PLATFORM.json)
-            echo "${PLATFORM}_URL=$ART" >> $GITHUB_ENV
+            ART=$(jq -r '.artifacts.applicationArchiveUrl // .artifacts.buildUrl // empty' "eas-status-$PLATFORM.json")
+            if [ -z "$ART" ] || [ "$ART" = "null" ]; then
+              echo "::warning::no artifact URL for $PLATFORM"
+              if [ "$PLATFORM" = "android" ]; then exit 1; fi
+              FAILED="$FAILED $PLATFORM(url)"
+              continue
+            fi
+            echo "${PLATFORM}_URL=$ART" >> "$GITHUB_ENV"
+            echo "::endgroup::"
           done
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          if echo "$FAILED" | grep -q ios; then
+            echo "::warning::iOS did not produce a build; Android will still be published if available."
+          fi
       - name: Download artifacts
         run: |
           mkdir -p dist
-          if [ -n "${android_URL:-}" ]; then curl -fsSL -o dist/DragonInventory-android.apk "$android_URL"; fi
-          if [ -n "${ios_URL:-}" ]; then curl -fsSL -o dist/DragonInventory-ios.ipa "$ios_URL"; fi
+          if [ -n "${android_URL:-}" ]; then
+            curl -fsSL -o dist/DragonInventory-android.apk "$android_URL"
+            ls -lh dist/DragonInventory-android.apk
+          fi
+          if [ -n "${ios_URL:-}" ]; then
+            curl -fsSL -o dist/DragonInventory-ios.ipa "$ios_URL"
+            ls -lh dist/DragonInventory-ios.ipa
+          fi
           ls -la dist || true
+          if [ ! -f dist/DragonInventory-android.apk ] && [ ! -f dist/DragonInventory-ios.ipa ]; then
+            echo "::error::No platform artifacts produced"
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
-        if: env.android_URL != ''
+        if: hashFiles('dist/DragonInventory-android.apk') != ''
         with:
           name: android-preview-apk
           path: dist/DragonInventory-android.apk
-          if-no-files-found: ignore
           retention-days: 30
       - uses: actions/upload-artifact@v4
-        if: env.ios_URL != ''
+        if: hashFiles('dist/DragonInventory-ios.ipa') != ''
         with:
           name: ios-preview-ipa
           path: dist/DragonInventory-ios.ipa
-          if-no-files-found: ignore
           retention-days: 30
       - uses: softprops/action-gh-release@v2
         with:
@@ -143,8 +194,16 @@ jobs:
           name: Dragon Inventory ${{ steps.version.outputs.version }}
           body: |
             Preview builds (no Expo Go).
-            Version ${{ steps.version.outputs.version }} | Android ${{ steps.version.outputs.version_code }} | iOS ${{ steps.version.outputs.ios_build }}
-            Android: install the APK. iOS: IPA needs Apple Developer + registered devices.
+
+            | | |
+            |---|---|
+            | Version | `${{ steps.version.outputs.version }}` |
+            | Android versionCode | `${{ steps.version.outputs.version_code }}` |
+            | iOS buildNumber | `${{ steps.version.outputs.ios_build }}` |
+
+            **Android:** install the APK from Assets (or the workflow artifact).
+
+            **iOS:** requires Apple Developer credentials in Expo (`eas credentials -p ios`) and registered device UDIDs for internal distribution.
           files: |
             dist/DragonInventory-android.apk
             dist/DragonInventory-ios.ipa
